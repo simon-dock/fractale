@@ -1,7 +1,27 @@
+from ctypes.wintypes import SIZE
+from curses.ascii import SI
+from itertools import count
 from select import select
+from sre_constants import REPEAT
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sp
+
+import sys
+import threading
+
+sys.setrecursionlimit(1000000) 
+threading.stack_size(2048*2048)
+
+#fractale生成の繰り返し回数
+REPEAT = 2
+#全体の大きさ
+SIZE_FIGURE = 255
+#元になる正n角形の大きさの全体に対する割合
+RATE = 0.2
+#垂直二等分線上の点と交点との距離を决める乱数
+RANDOM_RATE = np.random.normal(0,0.2,1)
+
 
 #figureの初期化
 def initialize(size_figure):
@@ -58,8 +78,7 @@ def draw_figure(coordinate, points):
 #最初と最後には同じ座標を入れる
 def make_polygon(vertex_points, size_figure, number_polygon):
 
-    Ratio = 0.3
-    radius = size_figure*Ratio
+    radius = size_figure*RATE
 
     t = np.linspace(0, np.pi*2 ,number_polygon)
     x = np.fix(radius*np.cos(t) + size_figure/2)
@@ -207,7 +226,7 @@ def search_new_vertex(I_Flag, V_Flag, H_Flag, slope, head_point, tail_point, siz
 #フラクタルデータを生成する
 def make_fractale_data(mid_data_number, points, size_figure):
 
-    random_number = np.random.normal(0,0.05,1)
+    random_number = RANDOM_RATE
     mid_vertex_points = np.zeros([mid_data_number,2], dtype=np.int32)
     Inside_Flag = 0
 
@@ -255,16 +274,49 @@ def make_one_lap_fractale(points, size_figure):
 #フラクタルデータを作成する
 def make_fractale(points, size_figure):
 
-    for i in range(2):
+    for i in range(REPEAT):
         points = make_one_lap_fractale(points, size_figure)
 
     return points
+
+#色を塗る
+def draw_corol(coordinate):
+
+    explored_array = np.zeros([SIZE_FIGURE,SIZE_FIGURE], dtype=np.int32)
+
+    space_count = 0
+    for i in range(SIZE_FIGURE):
+        for j in range(SIZE_FIGURE):
+            if explored_array[i][j] == 0:
+                space_count+=1
+                search_space(explored_array, coordinate, i, j, space_count)
+    
+    plt.imshow(explored_array,cmap="Greys")
+    plt.show()
+
+def search_space(explored_array, coordinate, y, x, space_count):
+
+    if y < 0 or SIZE_FIGURE <= y or x < 0 or SIZE_FIGURE <= x:
+        return
+    if coordinate[y][x] == 1:
+        explored_array[y][x]= -1
+        return
+    if explored_array[y][x] != 0:
+        return
+    explored_array[y][x] = space_count
+
+    search_space(explored_array, coordinate, y-1, x, space_count)
+    search_space(explored_array, coordinate, y+1, x, space_count)
+    search_space(explored_array, coordinate, y, x-1, space_count)
+    search_space(explored_array, coordinate, y, x+1, space_count)
+
+
     
 
 def main():
 
     #グラフの大きさ
-    size_figure = 512
+    size_figure = SIZE_FIGURE
 
     #n-1角形
     number_polygon = np.random.randint(4,10)
@@ -286,10 +338,15 @@ def main():
 
     #データをもとに作図する
     draw_figure(coordinate, vertex_points)
-
-    #グレイスケール化
     plt.imshow(coordinate,cmap="Greys")
     plt.show()
+
+
+    #色を塗る
+    #draw_corol(coordinate)
+
+    #グレイスケール化
+    
 
 #ax + b = y
 if __name__ == '__main__':
